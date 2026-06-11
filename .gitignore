@@ -1,0 +1,15 @@
+# Build output
+Runtime/Plugins/Windows/NativeBridge/build/
+
+# IDE
+.vs/
+*.vcxproj.user
+*.suo
+*.user
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Unity meta files for ignored items are kept
