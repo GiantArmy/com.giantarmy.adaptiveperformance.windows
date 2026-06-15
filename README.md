@@ -42,17 +42,9 @@ Tests/                             ← Runtime tests
 
    ```powershell
    cd Runtime/Plugins/Windows/NativeBridge~
-   mkdir build -ErrorAction SilentlyContinue
-   cd build
-   & "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" .. -G "Visual Studio 17 2022" -A x64
+   build-bridge.ps1
    ```
-
-2. **Build Release**:
-
-   ```powershell
-   & "C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\devenv.com" GiantArmyWindowsThermalBridge.sln /Build "Release"
-   ```
-
+   
 3. **Test**:
 
    ```powershell
@@ -61,8 +53,6 @@ Tests/                             ← Runtime tests
    ```
 
    Expected output shows thermal source, temperature reading, and GPU metrics.
-
-4. **Deploy**: Copy `build/Release/GiantArmyWindowsThermalBridge.dll` to `Runtime/Plugins/Windows/x86_64/`.
 
 ## Installation (Unity)
 
