@@ -1,6 +1,10 @@
 {
   "name": "com.giantarmy.adaptiveperformance.windows",
   "displayName": "GiantArmy Adaptive Performance Windows",
+    "author": {
+    "name": "GiantArmy, LLC",
+    "url": "https://giantarmy.com/"
+  },
   "version": "6.0.0",
   "unity": "6000.0",
   "description": "The GiantArmy Adaptive Performance Windows package provides the Adaptive Performance subsystem for Windows platforms and works in combination with Adaptive Performance.\n\nBy installing this package, you agree to the terms and conditions of the Unity End User License Agreement found under \"View licenses\" above.",
@@ -16,5 +20,7 @@
   "dependencies": {
     "com.unity.modules.adaptiveperformance": "1.0.0"
   },
+  "license": "MIT",
+  "category": "Performance",
   "_fingerprint": "d1aa9ef5c5dd0b7cec49a3aa1ecd882f21939639"
 }
