@@ -1,5 +1,5 @@
 # Build output
-Runtime/Plugins/Windows/NativeBridge/build/
+Runtime/Plugins/Windows/NativeBridge~/build/
 
 # IDE
 .vs/

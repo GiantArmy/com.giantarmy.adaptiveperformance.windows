@@ -1,0 +1,27 @@
+{
+    "name": "GiantArmy.AdaptivePerformance.Simulator.Windows.Extension.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:6be7b7abb3505494b9b452c9f52d46c0",
+        "GUID:f2b378986f929493294d3aaa39ea8244",
+        "GUID:223e3bf77112ec644bd396178b14704d",
+        "GUID:9bf3e3c5f491ec54c8a57079ff334ecc"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.device-simulator",
+            "expression": "2.1.0-preview",
+            "define": "DEVICE_SIMULATOR_ENABLED"
+        }
+    ],
+    "noEngineReferences": false
+}

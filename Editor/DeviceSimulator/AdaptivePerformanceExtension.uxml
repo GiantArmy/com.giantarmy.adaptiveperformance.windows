@@ -1,0 +1,51 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:Foldout text="Windows System" value="True" name="windows-system">
+        <Style src="AdaptivePerformanceExtension.uss" />
+        <ui:Label text="Simulate Windows adaptive performance signals for editor testing." />
+        <ui:Toggle name="windows-low-power-mode" label="Low Power Mode" value="false" />
+        <ui:IntegerField name="windows-target-frame-rate" label="Target Frame Rate" value="60" />
+        <ui:EnumField name="windows-performance-mode" label="Performance Mode" type="UnityEngine.AdaptivePerformance.PerformanceMode, UnityEngine.AdaptivePerformanceModule" value="Standard" include-obsolete-values="false" />
+        <ui:EnumField name="windows-warning-level" label="Warning Level" type="UnityEngine.AdaptivePerformance.WarningLevel, UnityEngine.AdaptivePerformanceModule" value="NoWarning" include-obsolete-values="false" />
+        <ui:Slider name="windows-temperature-level" label="Temperature Level" low-value="0" high-value="1" value="0.15" />
+    </ui:Foldout>
+    <ui:Foldout text="Windows Live Data" value="True" name="windows-live-data">
+        <Style src="AdaptivePerformanceExtension.uss" />
+        <ui:Label text="Live provider state from the active Windows bridge." />
+        <ui:Label name="windows-temperature-history-caption" text="Latest sample: 0.00" />
+        <ui:VisualElement name="windows-temperature-history-graph" />
+        <ui:VisualElement name="windows-live-data-grid">
+            <ui:Label text="Thermal Probe Source" />
+            <ui:Label name="windows-thermal-source-value" text="Unavailable" />
+            <ui:Label text="Thermal Probe Available" />
+            <ui:Label name="windows-thermal-available-value" text="No" />
+            <ui:Label text="Low Power Mode" />
+            <ui:Label name="windows-low-power-value" text="Disabled" />
+            <ui:Label text="Performance Mode" />
+            <ui:Label name="windows-performance-mode-value" text="Unknown" />
+            <ui:Label text="Warning Level" />
+            <ui:Label name="windows-warning-level-value" text="NoWarning" />
+            <ui:Label text="Temperature Level" />
+            <ui:Label name="windows-temperature-value" text="0.00" />
+        </ui:VisualElement>
+    </ui:Foldout>
+    <ui:Foldout text="GPU Metrics" value="True" name="windows-gpu-metrics">
+        <Style src="AdaptivePerformanceExtension.uss" />
+        <ui:Label text="Live GPU utilization, clock, and power data." />
+        <ui:Label name="windows-gpu-load-caption" text="GPU Load: N/A" />
+        <ui:VisualElement name="windows-gpu-load-graph" />
+        <ui:Label name="windows-gpu-power-caption" text="GPU Power: N/A" />
+        <ui:VisualElement name="windows-gpu-power-graph" />
+        <ui:VisualElement name="windows-gpu-data-grid">
+            <ui:Label text="GPU Metrics Source" />
+            <ui:Label name="windows-gpu-source-value" text="Unavailable" />
+            <ui:Label text="GPU Load" />
+            <ui:Label name="windows-gpu-load-value" text="N/A" />
+            <ui:Label text="GPU Clock" />
+            <ui:Label name="windows-gpu-clock-value" text="N/A" />
+            <ui:Label text="GPU Power" />
+            <ui:Label name="windows-gpu-power-value" text="N/A" />
+            <ui:Label text="GPU Perf Level" />
+            <ui:Label name="windows-gpu-perf-level-value" text="N/A" />
+        </ui:VisualElement>
+    </ui:Foldout>
+</ui:UXML>

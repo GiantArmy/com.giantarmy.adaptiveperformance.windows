@@ -1,0 +1,7 @@
+* [GiantArmy Adaptive Performance Windows](index.md)
+* [Requirements and compatibility](requirements.md)
+* [Getting started](getting-started.md)
+* [Build and validate](build-and-validate.md)
+* [Windows feature parity matrix](parity-matrix.md)
+* [Troubleshooting](troubleshooting.md)
+* [What's new](whats-new.md)

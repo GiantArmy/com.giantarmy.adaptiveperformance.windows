@@ -1,0 +1,16 @@
+{
+    "name": "GiantArmy.AdaptivePerformance.Windows",
+    "rootNamespace": "",
+    "references": [
+        "GUID:7dbf32976982c98448af054f2512cb79"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

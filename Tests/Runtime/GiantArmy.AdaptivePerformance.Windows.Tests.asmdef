@@ -1,0 +1,14 @@
+{
+    "name": "GiantArmy.AdaptivePerformance.Windows.Tests",
+    "references": [
+        "GiantArmy.AdaptivePerformance.Windows"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": []
+}

@@ -1,0 +1,19 @@
+{
+    "name": "GiantArmy.AdaptivePerformance.Windows.Editor",
+    "rootNamespace": "",
+    "references": [
+        "GUID:6be7b7abb3505494b9b452c9f52d46c0",
+        "GUID:223e3bf77112ec644bd396178b14704d"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
