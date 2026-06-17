@@ -33,6 +33,8 @@
         <ui:Label text="Live GPU utilization, clock, and power data." />
         <ui:Label name="windows-gpu-load-caption" text="GPU Load: N/A" />
         <ui:VisualElement name="windows-gpu-load-graph" />
+        <ui:Label name="windows-gpu-clock-caption" text="GPU Clock: N/A" />
+        <ui:VisualElement name="windows-gpu-clock-graph" />
         <ui:Label name="windows-gpu-power-caption" text="GPU Power: N/A" />
         <ui:VisualElement name="windows-gpu-power-graph" />
         <ui:VisualElement name="windows-gpu-data-grid">

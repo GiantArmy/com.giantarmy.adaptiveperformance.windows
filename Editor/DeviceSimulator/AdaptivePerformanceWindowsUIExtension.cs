@@ -238,10 +238,13 @@ namespace GiantArmy.Windows.Editor
         Label m_GpuPowerValueLabel;
         Label m_GpuPerfLevelValueLabel;
         Label m_GpuLoadCaptionLabel;
+        Label m_GpuClockCaptionLabel;
         Label m_GpuPowerCaptionLabel;
         GpuMetricsGraph m_GpuLoadGraph;
+        GpuMetricsGraph m_GpuClockGraph;
         GpuMetricsGraph m_GpuPowerGraph;
         VisualElement m_GpuLoadGraphHost;
+        VisualElement m_GpuClockGraphHost;
         VisualElement m_GpuPowerGraphHost;
 
         public override VisualElement OnCreateUI()
@@ -278,8 +281,10 @@ namespace GiantArmy.Windows.Editor
             m_GpuPowerValueLabel = root.Q<Label>("windows-gpu-power-value");
             m_GpuPerfLevelValueLabel = root.Q<Label>("windows-gpu-perf-level-value");
             m_GpuLoadCaptionLabel = root.Q<Label>("windows-gpu-load-caption");
+            m_GpuClockCaptionLabel = root.Q<Label>("windows-gpu-clock-caption");
             m_GpuPowerCaptionLabel = root.Q<Label>("windows-gpu-power-caption");
             m_GpuLoadGraphHost = root.Q<VisualElement>("windows-gpu-load-graph");
+            m_GpuClockGraphHost = root.Q<VisualElement>("windows-gpu-clock-graph");
             m_GpuPowerGraphHost = root.Q<VisualElement>("windows-gpu-power-graph");
 
             SetupStatusLabel(m_ThermalSourceValueLabel);
@@ -295,6 +300,7 @@ namespace GiantArmy.Windows.Editor
             SetupStatusLabel(m_GpuPowerValueLabel);
             SetupStatusLabel(m_GpuPerfLevelValueLabel);
             SetupStatusLabel(m_GpuLoadCaptionLabel);
+            SetupStatusLabel(m_GpuClockCaptionLabel);
             SetupStatusLabel(m_GpuPowerCaptionLabel);
 
             if (m_TemperatureHistoryGraphHost != null)
@@ -316,6 +322,15 @@ namespace GiantArmy.Windows.Editor
                 m_GpuLoadGraph.style.flexGrow = 1f;
                 m_GpuLoadGraph.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
                 m_GpuLoadGraphHost.Add(m_GpuLoadGraph);
+            }
+
+            if (m_GpuClockGraphHost != null)
+            {
+                m_GpuClockGraphHost.Clear();
+                m_GpuClockGraph = new GpuMetricsGraph(new Color(0.55f, 0.70f, 1.0f, 0.95f), "GPU Clock");
+                m_GpuClockGraph.style.flexGrow = 1f;
+                m_GpuClockGraph.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
+                m_GpuClockGraphHost.Add(m_GpuClockGraph);
             }
 
             if (m_GpuPowerGraphHost != null)
@@ -486,6 +501,23 @@ namespace GiantArmy.Windows.Editor
                     ? string.Format("GPU Load: {0:0}%", snapshot.gpuLoadPercent)
                     : "No GPU data";
                 ApplyState(m_GpuLoadCaptionLabel, snapshot.gpuMetricsAvailable ? "state-info" : "state-muted");
+            }
+
+            if (m_GpuClockGraph != null)
+            {
+                // Normalize clock to 0-1 range using max observed clock
+                float normalizedClock = snapshot.gpuClockMaxMhz > 0f
+                    ? Mathf.Clamp01(snapshot.gpuClockCurrentMhz / snapshot.gpuClockMaxMhz)
+                    : 0f;
+                m_GpuClockGraph.SetSample(normalizedClock, snapshot.gpuMetricsAvailable);
+            }
+
+            if (m_GpuClockCaptionLabel != null)
+            {
+                m_GpuClockCaptionLabel.text = snapshot.gpuMetricsAvailable
+                    ? string.Format("GPU Clock: {0:0} MHz (max {1:0})", snapshot.gpuClockCurrentMhz, snapshot.gpuClockMaxMhz)
+                    : "No GPU data";
+                ApplyState(m_GpuClockCaptionLabel, snapshot.gpuMetricsAvailable ? "state-info" : "state-muted");
             }
 
             if (m_GpuPowerGraph != null)

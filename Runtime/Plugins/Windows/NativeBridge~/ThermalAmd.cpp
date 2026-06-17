@@ -2,7 +2,7 @@
 
 // Define to enable verbose debug output for ADL GPU metrics diagnostics.
 // Undefine or comment out when done debugging.
-#define ADL_METRICS_DEBUG
+// #define ADL_METRICS_DEBUG
 
 #ifdef ADL_METRICS_DEBUG
 #define ADL_DBG(fmt, ...) std::printf("[ADL-METRICS] " fmt "\n", ##__VA_ARGS__)
@@ -32,10 +32,11 @@ namespace
     constexpr int ADL_PMLOG_TEMPERATURE_HOTSPOT_GCD = 50;
     constexpr int ADL_PMLOG_TEMPERATURE_HOTSPOT_MCD = 51;
 
-    constexpr int ADL_PMLOG_INFO_ACTIVITY_GFX = 7;
-    constexpr int ADL_PMLOG_CLK_GFXCLK = 0;
-    constexpr int ADL_PMLOG_CLK_MEMCLK = 1;
-    constexpr int ADL_PMLOG_ASIC_POWER = 45;
+    // Sensor IDs from AMD ADL SDK 18.1 (ADL_PMLOG_SENSORS enum)
+    constexpr int ADL_PMLOG_CLK_GFXCLK = 1;
+    constexpr int ADL_PMLOG_CLK_MEMCLK = 2;
+    constexpr int ADL_PMLOG_INFO_ACTIVITY_GFX = 19;
+    constexpr int ADL_PMLOG_ASIC_POWER = 23;
 
     typedef int ADL_Status;
     typedef void* ADL_CONTEXT_HANDLE;
@@ -66,7 +67,9 @@ namespace
         int iTemperature;
     };
 
-    struct ADL_SINGLE_SENSOR_DATA
+    // One-shot PMLog struct: flat indexed array where sensor ID IS the array index.
+    // Used by ADL2_New_QueryPMLogData_Get (the non-streaming API).
+    struct ADL_PMLOG_SENSOR_ENTRY
     {
         int supported;
         int value;
@@ -75,7 +78,7 @@ namespace
     struct ADL_PMLOG_DATA_OUTPUT
     {
         int size;
-        ADL_SINGLE_SENSOR_DATA sensors[ADL_PMLOG_MAX_SENSORS];
+        ADL_PMLOG_SENSOR_ENTRY sensors[ADL_PMLOG_MAX_SENSORS];
     };
 
     typedef ADL_Status (WINAPI* ADL_Main_Control_CreateFn)(ADL_MAIN_MALLOC_CALLBACK, int);
@@ -130,6 +133,85 @@ namespace
 
     typedef ADL_Status (WINAPI* ADL_Overdrive6_CurrentStatus_GetFn)(int, ADL_OD6_CURRENT_STATUS*);
     typedef ADL_Status (WINAPI* ADL2_Overdrive6_CurrentStatus_GetFn)(ADL_CONTEXT_HANDLE, int, ADL_OD6_CURRENT_STATUS*);
+
+    // ADL OverdriveN PerformanceStatus — works on Polaris, Vega, RDNA 1/2/3
+    struct ADL_ODN_PERFORMANCE_STATUS
+    {
+        int iCoreClock;                     // Current core clock in MHz
+        int iMemoryClock;                   // Current memory clock in MHz
+        int iDCEFClock;
+        int iGFXClock;
+        int iUVDClock;
+        int iVCEClock;
+        int iGPUActivityPercent;            // GPU utilization 0-100
+        int iCurrentCorePerformanceLevel;
+        int iCurrentMemoryPerformanceLevel;
+        int iCurrentDCEFPerformanceLevel;
+        int iCurrentGFXPerformanceLevel;
+        int iUVDPerformanceLevel;
+        int iVCEPerformanceLevel;
+        int iCurrentBusSpeed;
+        int iCurrentBusLanes;
+        int iMaximumBusLanes;
+        int iVDDC;
+        int iVDDCI;
+    };
+
+    typedef ADL_Status (WINAPI* ADL2_OverdriveN_PerformanceStatus_GetFn)(ADL_CONTEXT_HANDLE, int, ADL_ODN_PERFORMANCE_STATUS*);
+
+    // ADL Overdrive8 Current Setting — RDNA 2/3 current metrics via OD8
+    // ADL2_Overdrive8_Current_Setting_Get returns current clocks/voltages
+    // This is a simpler struct but some drivers expose activity via separate calls
+    struct ADL_OD8_SINGLE_SETTING
+    {
+        int iFeatureID;
+        int iDefaultValue;
+        int iActualValue;
+        int iRequestedValue;
+    };
+
+    // For Overdrive8, we primarily care about the PMLog-based metrics
+    // via ADL2_OverdriveN which is still the activity readout on RDNA 3.
+    // However, ADL2_Overdrive8_Current_PerformanceMetrics_Get exists on some drivers:
+    struct ADL_OD8_PERFORMANCE_METRICS
+    {
+        int iGPUClock;              // MHz
+        int iGPUMemoryClock;        // MHz
+        int iGPUActivity;           // 0-100
+        int iGPUVoltage;            // mV
+        int iGPUTemperature;        // Celsius
+        int iFanSpeedRPM;
+        int iFanSpeedPercent;
+        int iPower;                 // Watts
+    };
+
+    typedef ADL_Status (WINAPI* ADL2_Overdrive8_PMLogSensorDataFn)(ADL_CONTEXT_HANDLE, int, ADL_OD8_PERFORMANCE_METRICS*);
+
+    // ADL OverdriveN Capabilities — provides true max/min/default clocks for the GPU
+    struct ADL_ODN_PARAMETER_RANGE
+    {
+        int iMode;
+        int iMin;
+        int iMax;
+        int iStep;
+        int iDefault;
+    };
+
+    struct ADL_ODN_CAPABILITIES_X2
+    {
+        int iMaximumNumberOfPerformanceLevels;
+        int iFlags;
+        ADL_ODN_PARAMETER_RANGE sEngineClockRange;
+        ADL_ODN_PARAMETER_RANGE sMemoryClockRange;
+        ADL_ODN_PARAMETER_RANGE svddcRange;
+        ADL_ODN_PARAMETER_RANGE power;
+        ADL_ODN_PARAMETER_RANGE powerTuneTemperature;
+        ADL_ODN_PARAMETER_RANGE fanTemperature;
+        ADL_ODN_PARAMETER_RANGE fanSpeed;
+        ADL_ODN_PARAMETER_RANGE minimumPerformanceClock;
+    };
+
+    typedef ADL_Status (WINAPI* ADL2_OverdriveN_CapabilitiesX2_GetFn)(ADL_CONTEXT_HANDLE, int, ADL_ODN_CAPABILITIES_X2*);
 
     static void* adl_malloc(int size)
     {
@@ -421,7 +503,7 @@ bool TryReadThermalFromAdl(float& outCelsius)
                         if (sensorIndex < 0 || sensorIndex >= ADL_PMLOG_MAX_SENSORS)
                             continue;
 
-                        const ADL_SINGLE_SENSOR_DATA sensor = pmLogData.sensors[sensorIndex];
+                        const ADL_PMLOG_SENSOR_ENTRY& sensor = pmLogData.sensors[sensorIndex];
                         if (sensor.supported == 0)
                             continue;
 
@@ -499,24 +581,209 @@ bool TryReadThermalFromAdl(float& outCelsius)
     return true;
 }
 
+// ============================================================
+// GPU Metrics — Cached ADL state for fast repeated queries
+// ============================================================
+
+namespace
+{
+    // Which strategy succeeded on probe
+    enum AdlMetricsStrategy
+    {
+        kAdlStrategy_None = 0,
+        kAdlStrategy_PMLog,
+        kAdlStrategy_ODN,
+        kAdlStrategy_OD8,
+        kAdlStrategy_OD5,
+        kAdlStrategy_OD6,
+    };
+
+    struct AdlMetricsCache
+    {
+        bool initialized = false;
+        bool available = false;
+        float maxClockMhz = 0.0f;  // True max/boost clock from capabilities query
+
+        HMODULE adlModule = nullptr;
+        ADL_CONTEXT_HANDLE adlContext = nullptr;
+        AdlMetricsStrategy strategy = kAdlStrategy_None;
+        int adapterIndex = -1;
+
+        // Cached function pointers (only the ones needed post-probe)
+        ADL2_Main_Control_DestroyFn destroyFn = nullptr;
+        ADL2_New_QueryPMLogData_GetFn pmLogFn = nullptr;
+        ADL2_OverdriveN_PerformanceStatus_GetFn odNFn = nullptr;
+        ADL2_Overdrive8_PMLogSensorDataFn od8Fn = nullptr;
+        ADL2_Overdrive5_CurrentActivity_GetFn od5Fn = nullptr;
+        ADL2_Overdrive6_CurrentStatus_GetFn od6Fn = nullptr;
+    };
+
+    static thread_local AdlMetricsCache s_adlCache;
+}
+
+// Fast path: query metrics using the cached strategy
+static bool ReadGpuMetricsCached(AdlMetricsCache& cache)
+{
+    switch (cache.strategy)
+    {
+    case kAdlStrategy_PMLog:
+    {
+        ADL_PMLOG_DATA_OUTPUT pmLogData = {};
+        pmLogData.size = sizeof(ADL_PMLOG_DATA_OUTPUT);
+        if (cache.pmLogFn(cache.adlContext, cache.adapterIndex, &pmLogData) != ADL_OK)
+            return false;
+
+        bool got = false;
+        if (pmLogData.sensors[ADL_PMLOG_INFO_ACTIVITY_GFX].supported != 0)
+        {
+            t_LastGpuLoad = static_cast<float>(pmLogData.sensors[ADL_PMLOG_INFO_ACTIVITY_GFX].value);
+            got = true;
+        }
+        if (pmLogData.sensors[ADL_PMLOG_CLK_GFXCLK].supported != 0)
+        {
+            t_LastGpuClockCurrentMhz = static_cast<float>(pmLogData.sensors[ADL_PMLOG_CLK_GFXCLK].value);
+            if (cache.maxClockMhz > 0.0f)
+                t_LastGpuClockMaxMhz = cache.maxClockMhz;
+            else if (t_LastGpuClockCurrentMhz > t_LastGpuClockMaxMhz)
+                t_LastGpuClockMaxMhz = t_LastGpuClockCurrentMhz;
+            got = true;
+        }
+        if (pmLogData.sensors[ADL_PMLOG_ASIC_POWER].supported != 0)
+        {
+            t_LastGpuPowerWatts = static_cast<float>(pmLogData.sensors[ADL_PMLOG_ASIC_POWER].value);
+            got = true;
+        }
+        return got;
+    }
+
+    case kAdlStrategy_ODN:
+    {
+        ADL_ODN_PERFORMANCE_STATUS perfStatus = {};
+        if (cache.odNFn(cache.adlContext, cache.adapterIndex, &perfStatus) != ADL_OK)
+            return false;
+
+        bool got = false;
+        if (perfStatus.iGPUActivityPercent >= 0 && perfStatus.iGPUActivityPercent <= 100)
+        {
+            t_LastGpuLoad = static_cast<float>(perfStatus.iGPUActivityPercent);
+            got = true;
+        }
+        int clockMhz = perfStatus.iGFXClock > 0 ? perfStatus.iGFXClock : perfStatus.iCoreClock;
+        if (clockMhz > 0)
+        {
+            t_LastGpuClockCurrentMhz = static_cast<float>(clockMhz);
+            if (cache.maxClockMhz > 0.0f)
+                t_LastGpuClockMaxMhz = cache.maxClockMhz;
+            else if (t_LastGpuClockCurrentMhz > t_LastGpuClockMaxMhz)
+                t_LastGpuClockMaxMhz = t_LastGpuClockCurrentMhz;
+            got = true;
+        }
+        return got;
+    }
+
+    case kAdlStrategy_OD8:
+    {
+        ADL_OD8_PERFORMANCE_METRICS metrics = {};
+        if (cache.od8Fn(cache.adlContext, cache.adapterIndex, &metrics) != ADL_OK)
+            return false;
+
+        bool got = false;
+        if (metrics.iGPUActivity >= 0 && metrics.iGPUActivity <= 100)
+        {
+            t_LastGpuLoad = static_cast<float>(metrics.iGPUActivity);
+            got = true;
+        }
+        if (metrics.iGPUClock > 0)
+        {
+            t_LastGpuClockCurrentMhz = static_cast<float>(metrics.iGPUClock);
+            if (cache.maxClockMhz > 0.0f)
+                t_LastGpuClockMaxMhz = cache.maxClockMhz;
+            else if (t_LastGpuClockCurrentMhz > t_LastGpuClockMaxMhz)
+                t_LastGpuClockMaxMhz = t_LastGpuClockCurrentMhz;
+            got = true;
+        }
+        if (metrics.iPower > 0)
+        {
+            t_LastGpuPowerWatts = static_cast<float>(metrics.iPower);
+            got = true;
+        }
+        return got;
+    }
+
+    case kAdlStrategy_OD5:
+    {
+        ADL_PM_ACTIVITY activity = {};
+        activity.iSize = sizeof(ADL_PM_ACTIVITY);
+        if (cache.od5Fn(cache.adlContext, cache.adapterIndex, &activity) != ADL_OK)
+            return false;
+
+        bool got = false;
+        if (activity.iActivityPercent >= 0 && activity.iActivityPercent <= 100)
+        {
+            t_LastGpuLoad = static_cast<float>(activity.iActivityPercent);
+            got = true;
+        }
+        if (activity.iEngineClock > 0)
+        {
+            t_LastGpuClockCurrentMhz = static_cast<float>(activity.iEngineClock) / 100.0f;
+            if (cache.maxClockMhz > 0.0f)
+                t_LastGpuClockMaxMhz = cache.maxClockMhz;
+            else if (t_LastGpuClockCurrentMhz > t_LastGpuClockMaxMhz)
+                t_LastGpuClockMaxMhz = t_LastGpuClockCurrentMhz;
+            got = true;
+        }
+        return got;
+    }
+
+    case kAdlStrategy_OD6:
+    {
+        ADL_OD6_CURRENT_STATUS status = {};
+        if (cache.od6Fn(cache.adlContext, cache.adapterIndex, &status) != ADL_OK)
+            return false;
+
+        bool got = false;
+        if (status.iActivityPercent >= 0 && status.iActivityPercent <= 100)
+        {
+            t_LastGpuLoad = static_cast<float>(status.iActivityPercent);
+            got = true;
+        }
+        if (status.iEngineClock > 0)
+        {
+            t_LastGpuClockCurrentMhz = static_cast<float>(status.iEngineClock) / 100.0f;
+            if (cache.maxClockMhz > 0.0f)
+                t_LastGpuClockMaxMhz = cache.maxClockMhz;
+            else if (t_LastGpuClockCurrentMhz > t_LastGpuClockMaxMhz)
+                t_LastGpuClockMaxMhz = t_LastGpuClockCurrentMhz;
+            got = true;
+        }
+        return got;
+    }
+
+    default:
+        return false;
+    }
+}
+
 bool ReadGpuMetricsFromAdl()
 {
-    ADL_DBG("=== ReadGpuMetricsFromAdl START ===");
+    // Fast path: already probed and cached
+    if (s_adlCache.initialized)
+    {
+        if (!s_adlCache.available)
+            return false;
+        return ReadGpuMetricsCached(s_adlCache);
+    }
+
+    // First call: full probe
+    s_adlCache.initialized = true;
 
     HMODULE adlModule = LoadLibraryW(kAdlDllName);
     if (adlModule == nullptr)
-    {
-        ADL_DBG("LoadLibrary(atiadlxx.dll) failed (err=%lu), trying atiadlxy.dll", GetLastError());
         adlModule = LoadLibraryW(kAdlAltDllName);
-    }
     if (adlModule == nullptr)
-    {
-        ADL_DBG("LoadLibrary(atiadlxy.dll) also failed (err=%lu) - no ADL available", GetLastError());
         return false;
-    }
-    ADL_DBG("ADL DLL loaded successfully");
 
-    // ADL2 functions
+    // Resolve ADL2 function pointers
     auto adl2CreateFn = reinterpret_cast<ADL2_Main_Control_CreateFn>(GetProcAddress(adlModule, "ADL2_Main_Control_Create"));
     auto adl2DestroyFn = reinterpret_cast<ADL2_Main_Control_DestroyFn>(GetProcAddress(adlModule, "ADL2_Main_Control_Destroy"));
     auto adl2AdapterCountFn = reinterpret_cast<ADL2_Adapter_NumberOfAdapters_GetFn>(GetProcAddress(adlModule, "ADL2_Adapter_NumberOfAdapters_Get"));
@@ -524,67 +791,32 @@ bool ReadGpuMetricsFromAdl()
     auto adl2PmLogFn = reinterpret_cast<ADL2_New_QueryPMLogData_GetFn>(GetProcAddress(adlModule, "ADL2_New_QueryPMLogData_Get"));
     auto adl2Od5ActivityFn = reinterpret_cast<ADL2_Overdrive5_CurrentActivity_GetFn>(GetProcAddress(adlModule, "ADL2_Overdrive5_CurrentActivity_Get"));
     auto adl2Od6StatusFn = reinterpret_cast<ADL2_Overdrive6_CurrentStatus_GetFn>(GetProcAddress(adlModule, "ADL2_Overdrive6_CurrentStatus_Get"));
-
-    ADL_DBG("ADL2 exports: Create=%p Destroy=%p Count=%p Info=%p PMLog=%p OD5=%p OD6=%p",
-        (void*)adl2CreateFn, (void*)adl2DestroyFn, (void*)adl2AdapterCountFn,
-        (void*)adl2AdapterInfoFn, (void*)adl2PmLogFn, (void*)adl2Od5ActivityFn, (void*)adl2Od6StatusFn);
-
-    // ADL1 fallback functions
-    auto adlCreateFn = reinterpret_cast<ADL_Main_Control_CreateFn>(GetProcAddress(adlModule, "ADL_Main_Control_Create"));
-    auto adlDestroyFn = reinterpret_cast<ADL_Main_Control_DestroyFn>(GetProcAddress(adlModule, "ADL_Main_Control_Destroy"));
-    auto adlAdapterCountFn = reinterpret_cast<ADL_Adapter_NumberOfAdapters_GetFn>(GetProcAddress(adlModule, "ADL_Adapter_NumberOfAdapters_Get"));
-    auto adlAdapterInfoFn = reinterpret_cast<ADL_Adapter_AdapterInfo_GetFn>(GetProcAddress(adlModule, "ADL_Adapter_AdapterInfo_Get"));
-    auto adlOd5ActivityFn = reinterpret_cast<ADL_Overdrive5_CurrentActivity_GetFn>(GetProcAddress(adlModule, "ADL_Overdrive5_CurrentActivity_Get"));
-    auto adlOd6StatusFn = reinterpret_cast<ADL_Overdrive6_CurrentStatus_GetFn>(GetProcAddress(adlModule, "ADL_Overdrive6_CurrentStatus_Get"));
-
-    ADL_DBG("ADL1 exports: Create=%p Destroy=%p Count=%p Info=%p OD5=%p OD6=%p",
-        (void*)adlCreateFn, (void*)adlDestroyFn, (void*)adlAdapterCountFn,
-        (void*)adlAdapterInfoFn, (void*)adlOd5ActivityFn, (void*)adlOd6StatusFn);
+    auto adl2OdNPerfStatusFn = reinterpret_cast<ADL2_OverdriveN_PerformanceStatus_GetFn>(GetProcAddress(adlModule, "ADL2_OverdriveN_PerformanceStatus_Get"));
+    auto adl2Od8PerfMetricsFn = reinterpret_cast<ADL2_Overdrive8_PMLogSensorDataFn>(GetProcAddress(adlModule, "ADL2_Overdrive8_Current_PerformanceMetrics_Get"));
+    auto adl2OdNCapsFn = reinterpret_cast<ADL2_OverdriveN_CapabilitiesX2_GetFn>(GetProcAddress(adlModule, "ADL2_OverdriveN_CapabilitiesX2_Get"));
 
     const bool hasAdl2 = adl2CreateFn != nullptr && adl2DestroyFn != nullptr &&
                          adl2AdapterCountFn != nullptr && adl2AdapterInfoFn != nullptr;
-    const bool hasAdl1 = adlCreateFn != nullptr && adlDestroyFn != nullptr &&
-                         adlAdapterCountFn != nullptr && adlAdapterInfoFn != nullptr;
 
-    ADL_DBG("hasAdl2=%d hasAdl1=%d", hasAdl2, hasAdl1);
-
-    if (!hasAdl2 && !hasAdl1)
+    if (!hasAdl2)
     {
-        ADL_DBG("Neither ADL2 nor ADL1 core functions available - FAIL");
         FreeLibrary(adlModule);
         return false;
     }
 
-    // Initialize ADL2 (preferred) or ADL1
+    // Initialize ADL2 context (kept alive for the lifetime of the cache)
     ADL_CONTEXT_HANDLE adlContext = nullptr;
-    const bool useAdl2 = hasAdl2;
-
-    ADL_Status initStatus = useAdl2
-        ? adl2CreateFn(adl_malloc, 1, &adlContext)
-        : adlCreateFn(adl_malloc, 1);
-
-    ADL_DBG("ADL init (useAdl2=%d): status=%d context=%p", useAdl2, initStatus, (void*)adlContext);
-
-    if (initStatus != ADL_OK)
+    if (adl2CreateFn(adl_malloc, 1, &adlContext) != ADL_OK)
     {
-        ADL_DBG("ADL init FAILED - FAIL");
         FreeLibrary(adlModule);
         return false;
     }
 
-    // Get adapter info to filter to AMD adapters
+    // Enumerate adapters and find first AMD adapter
     int adapterCount = 0;
-    ADL_Status countStatus = useAdl2
-        ? adl2AdapterCountFn(adlContext, &adapterCount)
-        : adlAdapterCountFn(&adapterCount);
-
-    ADL_DBG("Adapter count: status=%d count=%d", countStatus, adapterCount);
-
-    if (countStatus != ADL_OK || adapterCount <= 0)
+    if (adl2AdapterCountFn(adlContext, &adapterCount) != ADL_OK || adapterCount <= 0)
     {
-        ADL_DBG("Adapter count failed or zero - FAIL");
-        if (useAdl2) adl2DestroyFn(adlContext);
-        else adlDestroyFn();
+        adl2DestroyFn(adlContext);
         FreeLibrary(adlModule);
         return false;
     }
@@ -596,294 +828,111 @@ bool ReadGpuMetricsFromAdl()
     for (int i = 0; i < adapterCount; ++i)
         adapters[i].iSize = sizeof(ADL_ADAPTER_INFO);
 
-    ADL_Status infoStatus = useAdl2
-        ? adl2AdapterInfoFn(adlContext, adapters.data(), static_cast<int>(sizeof(ADL_ADAPTER_INFO) * adapters.size()))
-        : adlAdapterInfoFn(adapters.data(), static_cast<int>(sizeof(ADL_ADAPTER_INFO) * adapters.size()));
-
-    ADL_DBG("AdapterInfo_Get: status=%d", infoStatus);
-
-    if (infoStatus != ADL_OK)
+    if (adl2AdapterInfoFn(adlContext, adapters.data(), static_cast<int>(sizeof(ADL_ADAPTER_INFO) * adapters.size())) != ADL_OK)
     {
-        ADL_DBG("AdapterInfo_Get FAILED - FAIL");
-        if (useAdl2) adl2DestroyFn(adlContext);
-        else adlDestroyFn();
+        adl2DestroyFn(adlContext);
         FreeLibrary(adlModule);
         return false;
     }
 
-    // Log all adapters
-    ADL_DBG("--- All adapters (%d total) ---", adapterCount);
-    for (int i = 0; i < adapterCount; ++i)
+    // Find first AMD adapter (deduplicate by bus number)
+    int amdAdapterIndex = -1;
     {
-        const ADL_ADAPTER_INFO& a = adapters[static_cast<size_t>(i)];
-        ADL_DBG("  [%d] idx=%d vendorId=0x%04X bus=%d present=%d exist=%d name='%s' display='%s'",
-            i, a.iAdapterIndex, a.iVendorID, a.iBusNumber, a.iPresent, a.iExist,
-            a.strAdapterName, a.strDisplayName);
-        ADL_DBG("       UDID='%.60s'", a.strUDID);
-        ADL_DBG("       isAmd=%d", IsAmdAdapter(a));
-    }
-
-    // Collect AMD adapter indices (deduplicated by bus number)
-    std::vector<int> amdAdapterIndices;
-    std::vector<int> seenBusNumbers;
-
-    for (int i = 0; i < adapterCount; ++i)
-    {
-        const ADL_ADAPTER_INFO& adapter = adapters[static_cast<size_t>(i)];
-        if (!IsAmdAdapter(adapter))
-            continue;
-
-        bool duplicate = false;
-        for (size_t s = 0; s < seenBusNumbers.size(); ++s)
-        {
-            if (seenBusNumbers[s] == adapter.iBusNumber)
-            {
-                duplicate = true;
-                break;
-            }
-        }
-        if (duplicate)
-            continue;
-        seenBusNumbers.push_back(adapter.iBusNumber);
-        amdAdapterIndices.push_back(adapter.iAdapterIndex);
-    }
-
-    ADL_DBG("AMD adapters found: %zu (dedup by bus)", amdAdapterIndices.size());
-    for (size_t i = 0; i < amdAdapterIndices.size(); ++i)
-        ADL_DBG("  AMD adapter index: %d (bus %d)", amdAdapterIndices[i], seenBusNumbers[i]);
-
-    // If no AMD adapters found by vendor check, try all adapters as fallback
-    if (amdAdapterIndices.empty())
-    {
-        ADL_DBG("No AMD adapters by vendor - falling back to ALL adapters");
+        std::vector<int> seenBusNumbers;
         for (int i = 0; i < adapterCount; ++i)
-            amdAdapterIndices.push_back(adapters[static_cast<size_t>(i)].iAdapterIndex);
-    }
-
-    bool gotAnything = false;
-
-    // Strategy 1: ADL2 PMLog (newer Adrenalin drivers — full metrics)
-    ADL_DBG("--- Strategy 1: PMLog (adl2PmLogFn=%p) ---", (void*)adl2PmLogFn);
-    if (useAdl2 && adl2PmLogFn != nullptr)
-    {
-        for (size_t idx = 0; idx < amdAdapterIndices.size() && !gotAnything; ++idx)
         {
-            const int adapterIndex = amdAdapterIndices[idx];
-            ADL_PMLOG_DATA_OUTPUT pmLogData = {};
-            pmLogData.size = sizeof(ADL_PMLOG_DATA_OUTPUT);
-
-            ADL_Status pmLogStatus = adl2PmLogFn(adlContext, adapterIndex, &pmLogData);
-            ADL_DBG("  PMLog adapter[%d]: status=%d", adapterIndex, pmLogStatus);
-
-            if (pmLogStatus != ADL_OK)
+            const ADL_ADAPTER_INFO& adapter = adapters[static_cast<size_t>(i)];
+            if (!IsAmdAdapter(adapter))
                 continue;
 
-            ADL_DBG("  PMLog sensors: activity[%d] sup=%d val=%d | clk[%d] sup=%d val=%d | power[%d] sup=%d val=%d",
-                ADL_PMLOG_INFO_ACTIVITY_GFX,
-                pmLogData.sensors[ADL_PMLOG_INFO_ACTIVITY_GFX].supported,
-                pmLogData.sensors[ADL_PMLOG_INFO_ACTIVITY_GFX].value,
-                ADL_PMLOG_CLK_GFXCLK,
-                pmLogData.sensors[ADL_PMLOG_CLK_GFXCLK].supported,
-                pmLogData.sensors[ADL_PMLOG_CLK_GFXCLK].value,
-                ADL_PMLOG_ASIC_POWER,
-                pmLogData.sensors[ADL_PMLOG_ASIC_POWER].supported,
-                pmLogData.sensors[ADL_PMLOG_ASIC_POWER].value);
-
-            if (ADL_PMLOG_INFO_ACTIVITY_GFX < ADL_PMLOG_MAX_SENSORS &&
-                pmLogData.sensors[ADL_PMLOG_INFO_ACTIVITY_GFX].supported != 0)
+            bool duplicate = false;
+            for (size_t s = 0; s < seenBusNumbers.size(); ++s)
             {
-                t_LastGpuLoad = static_cast<float>(pmLogData.sensors[ADL_PMLOG_INFO_ACTIVITY_GFX].value);
-                gotAnything = true;
-            }
-
-            if (ADL_PMLOG_CLK_GFXCLK < ADL_PMLOG_MAX_SENSORS &&
-                pmLogData.sensors[ADL_PMLOG_CLK_GFXCLK].supported != 0)
-            {
-                t_LastGpuClockCurrentMhz = static_cast<float>(pmLogData.sensors[ADL_PMLOG_CLK_GFXCLK].value);
-                t_LastGpuClockMaxMhz = t_LastGpuClockCurrentMhz;
-                gotAnything = true;
-            }
-
-            if (ADL_PMLOG_ASIC_POWER < ADL_PMLOG_MAX_SENSORS &&
-                pmLogData.sensors[ADL_PMLOG_ASIC_POWER].supported != 0)
-            {
-                t_LastGpuPowerWatts = static_cast<float>(pmLogData.sensors[ADL_PMLOG_ASIC_POWER].value);
-                gotAnything = true;
-            }
-
-            ADL_DBG("  PMLog result: gotAnything=%d", gotAnything);
-        }
-    }
-    else
-    {
-        ADL_DBG("  PMLog SKIPPED (useAdl2=%d, fn=%p)", useAdl2, (void*)adl2PmLogFn);
-    }
-
-    // Strategy 2: ADL2 Overdrive5 CurrentActivity
-    ADL_DBG("--- Strategy 2: OD5 Activity (adl2Od5ActivityFn=%p) gotAnything=%d ---", (void*)adl2Od5ActivityFn, gotAnything);
-    if (!gotAnything && useAdl2 && adl2Od5ActivityFn != nullptr)
-    {
-        for (size_t idx = 0; idx < amdAdapterIndices.size() && !gotAnything; ++idx)
-        {
-            const int adapterIndex = amdAdapterIndices[idx];
-            ADL_PM_ACTIVITY activity = {};
-            activity.iSize = sizeof(ADL_PM_ACTIVITY);
-
-            ADL_Status actStatus = adl2Od5ActivityFn(adlContext, adapterIndex, &activity);
-            ADL_DBG("  OD5 adapter[%d]: status=%d activity=%d%% clock=%d memclk=%d vddc=%d",
-                adapterIndex, actStatus, activity.iActivityPercent,
-                activity.iEngineClock, activity.iMemoryClock, activity.iVddc);
-
-            if (actStatus != ADL_OK)
-                continue;
-
-            if (activity.iActivityPercent >= 0 && activity.iActivityPercent <= 100)
-            {
-                t_LastGpuLoad = static_cast<float>(activity.iActivityPercent);
-                gotAnything = true;
-            }
-
-            if (activity.iEngineClock > 0)
-            {
-                t_LastGpuClockCurrentMhz = static_cast<float>(activity.iEngineClock) / 100.0f;
-                t_LastGpuClockMaxMhz = t_LastGpuClockCurrentMhz;
-                gotAnything = true;
-            }
-        }
-    }
-
-    // Strategy 3: ADL2 Overdrive6 CurrentStatus (GCN-era GPUs)
-    ADL_DBG("--- Strategy 3: OD6 Status (adl2Od6StatusFn=%p) gotAnything=%d ---", (void*)adl2Od6StatusFn, gotAnything);
-    if (!gotAnything && useAdl2 && adl2Od6StatusFn != nullptr)
-    {
-        for (size_t idx = 0; idx < amdAdapterIndices.size() && !gotAnything; ++idx)
-        {
-            const int adapterIndex = amdAdapterIndices[idx];
-            ADL_OD6_CURRENT_STATUS status = {};
-
-            ADL_Status od6Status = adl2Od6StatusFn(adlContext, adapterIndex, &status);
-            ADL_DBG("  OD6 adapter[%d]: status=%d activity=%d%% clock=%d memclk=%d",
-                adapterIndex, od6Status, status.iActivityPercent,
-                status.iEngineClock, status.iMemoryClock);
-
-            if (od6Status != ADL_OK)
-                continue;
-
-            if (status.iActivityPercent >= 0 && status.iActivityPercent <= 100)
-            {
-                t_LastGpuLoad = static_cast<float>(status.iActivityPercent);
-                gotAnything = true;
-            }
-
-            if (status.iEngineClock > 0)
-            {
-                t_LastGpuClockCurrentMhz = static_cast<float>(status.iEngineClock) / 100.0f;
-                t_LastGpuClockMaxMhz = t_LastGpuClockCurrentMhz;
-                gotAnything = true;
-            }
-        }
-    }
-
-    // Done with ADL2 context
-    if (useAdl2) adl2DestroyFn(adlContext);
-    else adlDestroyFn();
-
-    // Strategy 4: ADL1 Overdrive5/6 CurrentActivity (separate init required)
-    ADL_DBG("--- Strategy 4: ADL1 OD5/OD6 (hasAdl1=%d od5=%p od6=%p) gotAnything=%d ---",
-        hasAdl1, (void*)adlOd5ActivityFn, (void*)adlOd6StatusFn, gotAnything);
-    if (!gotAnything && hasAdl1 && (adlOd5ActivityFn != nullptr || adlOd6StatusFn != nullptr))
-    {
-        ADL_Status adl1InitStatus = adlCreateFn(adl_malloc, 1);
-        ADL_DBG("  ADL1 init: status=%d", adl1InitStatus);
-
-        if (adl1InitStatus == ADL_OK)
-        {
-            int adl1AdapterCount = 0;
-            ADL_Status adl1CountStatus = adlAdapterCountFn(&adl1AdapterCount);
-            ADL_DBG("  ADL1 adapter count: status=%d count=%d", adl1CountStatus, adl1AdapterCount);
-
-            if (adl1CountStatus == ADL_OK && adl1AdapterCount > 0)
-            {
-                // Try OD5 Activity first
-                if (adlOd5ActivityFn != nullptr)
+                if (seenBusNumbers[s] == adapter.iBusNumber)
                 {
-                    ADL_DBG("  ADL1 trying OD5 Activity...");
-                    for (size_t idx = 0; idx < amdAdapterIndices.size() && !gotAnything; ++idx)
-                    {
-                        const int adapterIndex = amdAdapterIndices[idx];
-                        if (adapterIndex >= adl1AdapterCount)
-                        {
-                            ADL_DBG("    adapter[%d] >= count(%d), skip", adapterIndex, adl1AdapterCount);
-                            continue;
-                        }
-
-                        ADL_PM_ACTIVITY activity = {};
-                        activity.iSize = sizeof(ADL_PM_ACTIVITY);
-
-                        ADL_Status actStatus = adlOd5ActivityFn(adapterIndex, &activity);
-                        ADL_DBG("    ADL1 OD5 adapter[%d]: status=%d activity=%d%% clock=%d",
-                            adapterIndex, actStatus, activity.iActivityPercent, activity.iEngineClock);
-
-                        if (actStatus != ADL_OK)
-                            continue;
-
-                        if (activity.iActivityPercent >= 0 && activity.iActivityPercent <= 100)
-                        {
-                            t_LastGpuLoad = static_cast<float>(activity.iActivityPercent);
-                            gotAnything = true;
-                        }
-
-                        if (activity.iEngineClock > 0)
-                        {
-                            t_LastGpuClockCurrentMhz = static_cast<float>(activity.iEngineClock) / 100.0f;
-                            t_LastGpuClockMaxMhz = t_LastGpuClockCurrentMhz;
-                            gotAnything = true;
-                        }
-                    }
-                }
-
-                // Try OD6 Status
-                if (!gotAnything && adlOd6StatusFn != nullptr)
-                {
-                    ADL_DBG("  ADL1 trying OD6 Status...");
-                    for (size_t idx = 0; idx < amdAdapterIndices.size() && !gotAnything; ++idx)
-                    {
-                        const int adapterIndex = amdAdapterIndices[idx];
-                        if (adapterIndex >= adl1AdapterCount)
-                        {
-                            ADL_DBG("    adapter[%d] >= count(%d), skip", adapterIndex, adl1AdapterCount);
-                            continue;
-                        }
-
-                        ADL_OD6_CURRENT_STATUS status = {};
-
-                        ADL_Status od6Status = adlOd6StatusFn(adapterIndex, &status);
-                        ADL_DBG("    ADL1 OD6 adapter[%d]: status=%d activity=%d%% clock=%d",
-                            adapterIndex, od6Status, status.iActivityPercent, status.iEngineClock);
-
-                        if (od6Status != ADL_OK)
-                            continue;
-
-                        if (status.iActivityPercent >= 0 && status.iActivityPercent <= 100)
-                        {
-                            t_LastGpuLoad = static_cast<float>(status.iActivityPercent);
-                            gotAnything = true;
-                        }
-
-                        if (status.iEngineClock > 0)
-                        {
-                            t_LastGpuClockCurrentMhz = static_cast<float>(status.iEngineClock) / 100.0f;
-                            t_LastGpuClockMaxMhz = t_LastGpuClockCurrentMhz;
-                            gotAnything = true;
-                        }
-                    }
+                    duplicate = true;
+                    break;
                 }
             }
-            adlDestroyFn();
+            if (duplicate)
+                continue;
+
+            amdAdapterIndex = adapter.iAdapterIndex;
+            break;
         }
     }
 
-    ADL_DBG("=== ReadGpuMetricsFromAdl END: gotAnything=%d ===", gotAnything);
+    if (amdAdapterIndex < 0)
+    {
+        // No AMD adapter found — try adapter 0 as fallback
+        amdAdapterIndex = 0;
+    }
+
+    // Query true max/boost clock from OverdriveN capabilities
+    float queriedMaxClockMhz = 0.0f;
+    if (adl2OdNCapsFn != nullptr)
+    {
+        ADL_ODN_CAPABILITIES_X2 caps = {};
+        if (adl2OdNCapsFn(adlContext, amdAdapterIndex, &caps) == ADL_OK)
+        {
+            // iDefault = stock boost clock; iMax = overclock limit
+            if (caps.sEngineClockRange.iDefault > 0)
+                queriedMaxClockMhz = static_cast<float>(caps.sEngineClockRange.iDefault);
+            else if (caps.sEngineClockRange.iMax > 0)
+                queriedMaxClockMhz = static_cast<float>(caps.sEngineClockRange.iMax);
+        }
+    }
+
+    // Probe strategies in priority order to find one that works
+    struct StrategyProbe
+    {
+        AdlMetricsStrategy strategy;
+        bool available;
+    };
+
+    StrategyProbe probes[] =
+    {
+        { kAdlStrategy_PMLog, adl2PmLogFn != nullptr },
+        { kAdlStrategy_ODN,   adl2OdNPerfStatusFn != nullptr },
+        { kAdlStrategy_OD8,   adl2Od8PerfMetricsFn != nullptr },
+        { kAdlStrategy_OD5,   adl2Od5ActivityFn != nullptr },
+        { kAdlStrategy_OD6,   adl2Od6StatusFn != nullptr },
+    };
+
+    // Build cache and attempt first read to validate
+    s_adlCache.adlModule = adlModule;
+    s_adlCache.adlContext = adlContext;
+    s_adlCache.adapterIndex = amdAdapterIndex;
+    s_adlCache.maxClockMhz = queriedMaxClockMhz;
+    s_adlCache.destroyFn = adl2DestroyFn;
+    s_adlCache.pmLogFn = adl2PmLogFn;
+    s_adlCache.odNFn = adl2OdNPerfStatusFn;
+    s_adlCache.od8Fn = adl2Od8PerfMetricsFn;
+    s_adlCache.od5Fn = adl2Od5ActivityFn;
+    s_adlCache.od6Fn = adl2Od6StatusFn;
+
+    for (const auto& probe : probes)
+    {
+        if (!probe.available)
+            continue;
+
+        s_adlCache.strategy = probe.strategy;
+        if (ReadGpuMetricsCached(s_adlCache))
+        {
+            s_adlCache.available = true;
+            // Set true max clock from capabilities if available
+            if (s_adlCache.maxClockMhz > 0.0f)
+                t_LastGpuClockMaxMhz = s_adlCache.maxClockMhz;
+            return true;
+        }
+    }
+
+    // No strategy worked — clean up
+    s_adlCache.strategy = kAdlStrategy_None;
+    s_adlCache.available = false;
+    adl2DestroyFn(adlContext);
+    s_adlCache.adlContext = nullptr;
     FreeLibrary(adlModule);
-    return gotAnything;
+    s_adlCache.adlModule = nullptr;
+    return false;
 }
