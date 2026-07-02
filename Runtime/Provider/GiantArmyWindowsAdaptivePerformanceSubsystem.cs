@@ -36,6 +36,11 @@ namespace UnityEngine.AdaptivePerformance.GiantArmy.Windows
         public ulong systemTotalPhysicalBytes;
         public ulong systemAvailablePhysicalBytes;
         public float systemMemoryLoadPercent;
+
+        // Application memory (this process only — from GetProcessMemoryInfo)
+        public bool applicationMemoryAvailable;
+        public ulong applicationWorkingSetBytes;
+        public ulong applicationPrivateBytes;
     }
 
     internal static class WindowsProviderLog
@@ -110,6 +115,11 @@ namespace UnityEngine.AdaptivePerformance.GiantArmy.Windows
                 out snapshot.systemAvailablePhysicalBytes,
                 out var memoryLoadPercent);
             snapshot.systemMemoryLoadPercent = memoryLoadPercent;
+
+            // Application memory
+            snapshot.applicationMemoryAvailable = NativeApi.TryGetProcessMemoryStatus(
+                out snapshot.applicationWorkingSetBytes,
+                out snapshot.applicationPrivateBytes);
 
             return true;
         }
@@ -395,6 +405,33 @@ namespace UnityEngine.AdaptivePerformance.GiantArmy.Windows
                 [return: MarshalAs(UnmanagedType.Bool)]
                 static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
 
+                [StructLayout(LayoutKind.Sequential)]
+                struct PROCESS_MEMORY_COUNTERS_EX
+                {
+                    public uint cb;
+                    public uint PageFaultCount;
+                    public UIntPtr PeakWorkingSetSize;
+                    public UIntPtr WorkingSetSize;
+                    public UIntPtr QuotaPeakPagedPoolUsage;
+                    public UIntPtr QuotaPagedPoolUsage;
+                    public UIntPtr QuotaPeakNonPagedPoolUsage;
+                    public UIntPtr QuotaNonPagedPoolUsage;
+                    public UIntPtr PagefileUsage;
+                    public UIntPtr PeakPagefileUsage;
+                    public UIntPtr PrivateUsage;
+                }
+
+                [DllImport("kernel32.dll")]
+                static extern IntPtr GetCurrentProcess();
+
+                // This process's own memory footprint. Queries only the current process via its
+                // pseudo-handle (no system-wide process enumeration like System.Diagnostics.Process
+                // does on Windows) — same cheap-syscall cost class as GlobalMemoryStatusEx above,
+                // safe to call every poll tick.
+                [DllImport("psapi.dll", SetLastError = true)]
+                [return: MarshalAs(UnmanagedType.Bool)]
+                static extern bool GetProcessMemoryInfo(IntPtr hProcess, out PROCESS_MEMORY_COUNTERS_EX counters, uint size);
+
                 [DllImport("GiantArmyWindowsThermalBridge", EntryPoint = "GAWT_IsThermalApiAvailable", CallingConvention = CallingConvention.Cdecl)]
                 static extern int GAWT_IsThermalApiAvailable();
 
@@ -540,8 +577,8 @@ namespace UnityEngine.AdaptivePerformance.GiantArmy.Windows
                 }
 
                 // Reads OS-wide physical memory status via GlobalMemoryStatusEx. memoryLoadPercent
-                // is the OS's own 0..100 measure of system memory pressure across all processes —
-                // the accurate figure to use in place of this application's own memory footprint.
+                // is the OS's own 0..100 measure of system memory pressure across all processes.
+                // For this application's own footprint, see TryGetProcessMemoryStatus below.
                 public static bool TryGetSystemMemoryStatus(out ulong totalPhysicalBytes, out ulong availablePhysicalBytes, out uint memoryLoadPercent)
                 {
                     var status = new MEMORYSTATUSEX { dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX)) };
@@ -557,6 +594,25 @@ namespace UnityEngine.AdaptivePerformance.GiantArmy.Windows
                     totalPhysicalBytes = status.ullTotalPhys;
                     availablePhysicalBytes = status.ullAvailPhys;
                     memoryLoadPercent = status.dwMemoryLoad;
+                    return true;
+                }
+
+                // Reads this process's own working set via GetProcessMemoryInfo — the same value
+                // as System.Diagnostics.Process.WorkingSet64, but without the system-wide process
+                // enumeration .NET's Process class does under the hood on Windows.
+                public static bool TryGetProcessMemoryStatus(out ulong workingSetBytes, out ulong privateBytes)
+                {
+                    var counters = new PROCESS_MEMORY_COUNTERS_EX { cb = (uint)Marshal.SizeOf(typeof(PROCESS_MEMORY_COUNTERS_EX)) };
+
+                    if (!GetProcessMemoryInfo(GetCurrentProcess(), out counters, counters.cb))
+                    {
+                        workingSetBytes = 0;
+                        privateBytes = 0;
+                        return false;
+                    }
+
+                    workingSetBytes = (ulong)counters.WorkingSetSize;
+                    privateBytes = (ulong)counters.PrivateUsage;
                     return true;
                 }
 
