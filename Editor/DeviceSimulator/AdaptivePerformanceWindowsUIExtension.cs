@@ -260,140 +260,140 @@ namespace GiantArmy.Windows.Editor
 
             root.Add(tree.CloneTree());
 
-            m_LowPowerModeToggle = root.Q<Toggle>("windows-low-power-mode");
-            m_TargetFrameRateField = root.Q<IntegerField>("windows-target-frame-rate");
-            m_PerformanceModeField = root.Q<EnumField>("windows-performance-mode");
-            m_WarningLevelField = root.Q<EnumField>("windows-warning-level");
-            m_TemperatureLevelSlider = root.Q<Slider>("windows-temperature-level");
-            m_TemperatureHistoryGraphHost = root.Q<VisualElement>("windows-temperature-history-graph");
-            m_TemperatureHistoryCaptionLabel = root.Q<Label>("windows-temperature-history-caption");
-            m_ThermalSourceValueLabel = root.Q<Label>("windows-thermal-source-value");
-            m_ThermalAvailableValueLabel = root.Q<Label>("windows-thermal-available-value");
-            m_LowPowerValueLabel = root.Q<Label>("windows-low-power-value");
-            m_PerformanceModeValueLabel = root.Q<Label>("windows-performance-mode-value");
-            m_WarningLevelValueLabel = root.Q<Label>("windows-warning-level-value");
-            m_TemperatureValueLabel = root.Q<Label>("windows-temperature-value");
+            // m_LowPowerModeToggle = root.Q<Toggle>("windows-low-power-mode");
+            // m_TargetFrameRateField = root.Q<IntegerField>("windows-target-frame-rate");
+            // m_PerformanceModeField = root.Q<EnumField>("windows-performance-mode");
+            // m_WarningLevelField = root.Q<EnumField>("windows-warning-level");
+            // m_TemperatureLevelSlider = root.Q<Slider>("windows-temperature-level");
+            // m_TemperatureHistoryGraphHost = root.Q<VisualElement>("windows-temperature-history-graph");
+            // m_TemperatureHistoryCaptionLabel = root.Q<Label>("windows-temperature-history-caption");
+            // m_ThermalSourceValueLabel = root.Q<Label>("windows-thermal-source-value");
+            // m_ThermalAvailableValueLabel = root.Q<Label>("windows-thermal-available-value");
+            // m_LowPowerValueLabel = root.Q<Label>("windows-low-power-value");
+            // m_PerformanceModeValueLabel = root.Q<Label>("windows-performance-mode-value");
+            // m_WarningLevelValueLabel = root.Q<Label>("windows-warning-level-value");
+            // m_TemperatureValueLabel = root.Q<Label>("windows-temperature-value");
 
-            // GPU metrics labels
-            m_GpuSourceValueLabel = root.Q<Label>("windows-gpu-source-value");
-            m_GpuLoadValueLabel = root.Q<Label>("windows-gpu-load-value");
-            m_GpuClockValueLabel = root.Q<Label>("windows-gpu-clock-value");
-            m_GpuPowerValueLabel = root.Q<Label>("windows-gpu-power-value");
-            m_GpuPerfLevelValueLabel = root.Q<Label>("windows-gpu-perf-level-value");
-            m_GpuLoadCaptionLabel = root.Q<Label>("windows-gpu-load-caption");
-            m_GpuClockCaptionLabel = root.Q<Label>("windows-gpu-clock-caption");
-            m_GpuPowerCaptionLabel = root.Q<Label>("windows-gpu-power-caption");
-            m_GpuLoadGraphHost = root.Q<VisualElement>("windows-gpu-load-graph");
-            m_GpuClockGraphHost = root.Q<VisualElement>("windows-gpu-clock-graph");
-            m_GpuPowerGraphHost = root.Q<VisualElement>("windows-gpu-power-graph");
+            // // GPU metrics labels
+            // m_GpuSourceValueLabel = root.Q<Label>("windows-gpu-source-value");
+            // m_GpuLoadValueLabel = root.Q<Label>("windows-gpu-load-value");
+            // m_GpuClockValueLabel = root.Q<Label>("windows-gpu-clock-value");
+            // m_GpuPowerValueLabel = root.Q<Label>("windows-gpu-power-value");
+            // m_GpuPerfLevelValueLabel = root.Q<Label>("windows-gpu-perf-level-value");
+            // m_GpuLoadCaptionLabel = root.Q<Label>("windows-gpu-load-caption");
+            // m_GpuClockCaptionLabel = root.Q<Label>("windows-gpu-clock-caption");
+            // m_GpuPowerCaptionLabel = root.Q<Label>("windows-gpu-power-caption");
+            // m_GpuLoadGraphHost = root.Q<VisualElement>("windows-gpu-load-graph");
+            // m_GpuClockGraphHost = root.Q<VisualElement>("windows-gpu-clock-graph");
+            // m_GpuPowerGraphHost = root.Q<VisualElement>("windows-gpu-power-graph");
 
-            SetupStatusLabel(m_ThermalSourceValueLabel);
-            SetupStatusLabel(m_ThermalAvailableValueLabel);
-            SetupStatusLabel(m_LowPowerValueLabel);
-            SetupStatusLabel(m_PerformanceModeValueLabel);
-            SetupStatusLabel(m_WarningLevelValueLabel);
-            SetupStatusLabel(m_TemperatureValueLabel);
-            SetupStatusLabel(m_TemperatureHistoryCaptionLabel);
-            SetupStatusLabel(m_GpuSourceValueLabel);
-            SetupStatusLabel(m_GpuLoadValueLabel);
-            SetupStatusLabel(m_GpuClockValueLabel);
-            SetupStatusLabel(m_GpuPowerValueLabel);
-            SetupStatusLabel(m_GpuPerfLevelValueLabel);
-            SetupStatusLabel(m_GpuLoadCaptionLabel);
-            SetupStatusLabel(m_GpuClockCaptionLabel);
-            SetupStatusLabel(m_GpuPowerCaptionLabel);
+            // SetupStatusLabel(m_ThermalSourceValueLabel);
+            // SetupStatusLabel(m_ThermalAvailableValueLabel);
+            // SetupStatusLabel(m_LowPowerValueLabel);
+            // SetupStatusLabel(m_PerformanceModeValueLabel);
+            // SetupStatusLabel(m_WarningLevelValueLabel);
+            // SetupStatusLabel(m_TemperatureValueLabel);
+            // SetupStatusLabel(m_TemperatureHistoryCaptionLabel);
+            // SetupStatusLabel(m_GpuSourceValueLabel);
+            // SetupStatusLabel(m_GpuLoadValueLabel);
+            // SetupStatusLabel(m_GpuClockValueLabel);
+            // SetupStatusLabel(m_GpuPowerValueLabel);
+            // SetupStatusLabel(m_GpuPerfLevelValueLabel);
+            // SetupStatusLabel(m_GpuLoadCaptionLabel);
+            // SetupStatusLabel(m_GpuClockCaptionLabel);
+            // SetupStatusLabel(m_GpuPowerCaptionLabel);
 
-            if (m_TemperatureHistoryGraphHost != null)
-            {
-                m_TemperatureHistoryGraphHost.Clear();
-                m_TemperatureHistoryGraph = new TemperatureHistoryGraph
-                {
-                    name = "windows-temperature-history-graph-canvas"
-                };
-                m_TemperatureHistoryGraph.style.flexGrow = 1f;
-                m_TemperatureHistoryGraph.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
-                m_TemperatureHistoryGraphHost.Add(m_TemperatureHistoryGraph);
-            }
+            // if (m_TemperatureHistoryGraphHost != null)
+            // {
+            //     m_TemperatureHistoryGraphHost.Clear();
+            //     m_TemperatureHistoryGraph = new TemperatureHistoryGraph
+            //     {
+            //         name = "windows-temperature-history-graph-canvas"
+            //     };
+            //     m_TemperatureHistoryGraph.style.flexGrow = 1f;
+            //     m_TemperatureHistoryGraph.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
+            //     m_TemperatureHistoryGraphHost.Add(m_TemperatureHistoryGraph);
+            // }
 
-            if (m_GpuLoadGraphHost != null)
-            {
-                m_GpuLoadGraphHost.Clear();
-                m_GpuLoadGraph = new GpuMetricsGraph(new Color(0.45f, 0.85f, 0.45f, 0.95f), "GPU Load");
-                m_GpuLoadGraph.style.flexGrow = 1f;
-                m_GpuLoadGraph.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
-                m_GpuLoadGraphHost.Add(m_GpuLoadGraph);
-            }
+            // if (m_GpuLoadGraphHost != null)
+            // {
+            //     m_GpuLoadGraphHost.Clear();
+            //     m_GpuLoadGraph = new GpuMetricsGraph(new Color(0.45f, 0.85f, 0.45f, 0.95f), "GPU Load");
+            //     m_GpuLoadGraph.style.flexGrow = 1f;
+            //     m_GpuLoadGraph.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
+            //     m_GpuLoadGraphHost.Add(m_GpuLoadGraph);
+            // }
 
-            if (m_GpuClockGraphHost != null)
-            {
-                m_GpuClockGraphHost.Clear();
-                m_GpuClockGraph = new GpuMetricsGraph(new Color(0.55f, 0.70f, 1.0f, 0.95f), "GPU Clock");
-                m_GpuClockGraph.style.flexGrow = 1f;
-                m_GpuClockGraph.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
-                m_GpuClockGraphHost.Add(m_GpuClockGraph);
-            }
+            // if (m_GpuClockGraphHost != null)
+            // {
+            //     m_GpuClockGraphHost.Clear();
+            //     m_GpuClockGraph = new GpuMetricsGraph(new Color(0.55f, 0.70f, 1.0f, 0.95f), "GPU Clock");
+            //     m_GpuClockGraph.style.flexGrow = 1f;
+            //     m_GpuClockGraph.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
+            //     m_GpuClockGraphHost.Add(m_GpuClockGraph);
+            // }
 
-            if (m_GpuPowerGraphHost != null)
-            {
-                m_GpuPowerGraphHost.Clear();
-                m_GpuPowerGraph = new GpuMetricsGraph(new Color(1.0f, 0.6f, 0.2f, 0.95f), "GPU Power");
-                m_GpuPowerGraph.style.flexGrow = 1f;
-                m_GpuPowerGraph.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
-                m_GpuPowerGraphHost.Add(m_GpuPowerGraph);
-            }
+            // if (m_GpuPowerGraphHost != null)
+            // {
+            //     m_GpuPowerGraphHost.Clear();
+            //     m_GpuPowerGraph = new GpuMetricsGraph(new Color(1.0f, 0.6f, 0.2f, 0.95f), "GPU Power");
+            //     m_GpuPowerGraph.style.flexGrow = 1f;
+            //     m_GpuPowerGraph.style.height = new StyleLength(new Length(100f, LengthUnit.Percent));
+            //     m_GpuPowerGraphHost.Add(m_GpuPowerGraph);
+            // }
 
-            if (m_LowPowerModeToggle != null)
-            {
-                m_LowPowerModeToggle.RegisterValueChangedCallback(evt =>
-                {
-                    // Simulator internals differ across Unity versions, so probe multiple names.
-                    if (!TrySetAnySubsystemProperty(new[] { "LowPowerModeEnabled", "LowPowerMode", "BatterySaverEnabled" }, evt.newValue))
-                        TrySetSubsystemProperty("PerformanceMode", GetModeFromInputs(evt.newValue, Application.targetFrameRate));
-                });
-            }
+            // if (m_LowPowerModeToggle != null)
+            // {
+            //     m_LowPowerModeToggle.RegisterValueChangedCallback(evt =>
+            //     {
+            //         // Simulator internals differ across Unity versions, so probe multiple names.
+            //         if (!TrySetAnySubsystemProperty(new[] { "LowPowerModeEnabled", "LowPowerMode", "BatterySaverEnabled" }, evt.newValue))
+            //             TrySetSubsystemProperty("PerformanceMode", GetModeFromInputs(evt.newValue, Application.targetFrameRate));
+            //     });
+            // }
 
-            if (m_TargetFrameRateField != null)
-            {
-                m_TargetFrameRateField.RegisterValueChangedCallback(evt =>
-                {
-                    var clampedFrameRate = Mathf.Clamp(evt.newValue, -1, 240);
-                    Application.targetFrameRate = clampedFrameRate;
+            // if (m_TargetFrameRateField != null)
+            // {
+            //     m_TargetFrameRateField.RegisterValueChangedCallback(evt =>
+            //     {
+            //         var clampedFrameRate = Mathf.Clamp(evt.newValue, -1, 240);
+            //         Application.targetFrameRate = clampedFrameRate;
 
-                    if (m_LowPowerModeToggle == null || !m_LowPowerModeToggle.value)
-                        TrySetSubsystemProperty("PerformanceMode", GetModeFromInputs(false, clampedFrameRate));
-                });
-            }
+            //         if (m_LowPowerModeToggle == null || !m_LowPowerModeToggle.value)
+            //             TrySetSubsystemProperty("PerformanceMode", GetModeFromInputs(false, clampedFrameRate));
+            //     });
+            // }
 
-            if (m_PerformanceModeField != null)
-            {
-                m_PerformanceModeField.Init(PerformanceMode.Standard);
-                m_PerformanceModeField.RegisterValueChangedCallback(evt =>
-                {
-                    TrySetSubsystemProperty("PerformanceMode", (PerformanceMode)evt.newValue);
-                });
-            }
+            // if (m_PerformanceModeField != null)
+            // {
+            //     m_PerformanceModeField.Init(PerformanceMode.Standard);
+            //     m_PerformanceModeField.RegisterValueChangedCallback(evt =>
+            //     {
+            //         TrySetSubsystemProperty("PerformanceMode", (PerformanceMode)evt.newValue);
+            //     });
+            // }
 
-            if (m_WarningLevelField != null)
-            {
-                m_WarningLevelField.Init(WarningLevel.NoWarning);
-                m_WarningLevelField.RegisterValueChangedCallback(evt =>
-                {
-                    TrySetSubsystemProperty("WarningLevel", (WarningLevel)evt.newValue);
-                });
-            }
+            // if (m_WarningLevelField != null)
+            // {
+            //     m_WarningLevelField.Init(WarningLevel.NoWarning);
+            //     m_WarningLevelField.RegisterValueChangedCallback(evt =>
+            //     {
+            //         TrySetSubsystemProperty("WarningLevel", (WarningLevel)evt.newValue);
+            //     });
+            // }
 
-            if (m_TemperatureLevelSlider != null)
-            {
-                m_TemperatureLevelSlider.RegisterValueChangedCallback(evt =>
-                {
-                    var value = Mathf.Clamp01(evt.newValue);
-                    if (!TrySetSubsystemProperty("TemperatureLevel", value))
-                        TrySetSubsystemProperty("Temperature", value);
-                });
-            }
+            // if (m_TemperatureLevelSlider != null)
+            // {
+            //     m_TemperatureLevelSlider.RegisterValueChangedCallback(evt =>
+            //     {
+            //         var value = Mathf.Clamp01(evt.newValue);
+            //         if (!TrySetSubsystemProperty("TemperatureLevel", value))
+            //             TrySetSubsystemProperty("Temperature", value);
+            //     });
+            // }
 
-            root.schedule.Execute(RefreshDiagnostics).Every(500);
-            RefreshDiagnostics();
+            // root.schedule.Execute(RefreshDiagnostics).Every(500);
+            // RefreshDiagnostics();
 
             return root;
         }

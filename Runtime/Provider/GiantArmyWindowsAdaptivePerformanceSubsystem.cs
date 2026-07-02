@@ -30,6 +30,12 @@ namespace UnityEngine.AdaptivePerformance.GiantArmy.Windows
         public float gpuClockMaxMhz;
         public float gpuPowerWatts;
         public int gpuPerformanceLevel;
+
+        // System memory (OS-wide, across all processes — from GlobalMemoryStatusEx)
+        public bool systemMemoryAvailable;
+        public ulong systemTotalPhysicalBytes;
+        public ulong systemAvailablePhysicalBytes;
+        public float systemMemoryLoadPercent;
     }
 
     internal static class WindowsProviderLog
@@ -97,6 +103,13 @@ namespace UnityEngine.AdaptivePerformance.GiantArmy.Windows
                 if (snapshot.gpuClockMaxMhz > 0f)
                     snapshot.gpuPerformanceLevel = Mathf.RoundToInt(Mathf.Clamp01(snapshot.gpuClockCurrentMhz / snapshot.gpuClockMaxMhz) * 6);
             }
+
+            // System memory
+            snapshot.systemMemoryAvailable = NativeApi.TryGetSystemMemoryStatus(
+                out snapshot.systemTotalPhysicalBytes,
+                out snapshot.systemAvailablePhysicalBytes,
+                out var memoryLoadPercent);
+            snapshot.systemMemoryLoadPercent = memoryLoadPercent;
 
             return true;
         }
@@ -361,6 +374,27 @@ namespace UnityEngine.AdaptivePerformance.GiantArmy.Windows
                 [DllImport("kernel32.dll", SetLastError = true)]
                 static extern bool GetSystemPowerStatus(out SYSTEM_POWER_STATUS systemPowerStatus);
 
+                [StructLayout(LayoutKind.Sequential)]
+                struct MEMORYSTATUSEX
+                {
+                    public uint dwLength;
+                    public uint dwMemoryLoad;
+                    public ulong ullTotalPhys;
+                    public ulong ullAvailPhys;
+                    public ulong ullTotalPageFile;
+                    public ulong ullAvailPageFile;
+                    public ulong ullTotalVirtual;
+                    public ulong ullAvailVirtual;
+                    public ulong ullAvailExtendedVirtual;
+                }
+
+                // OS-wide physical memory status across ALL processes (not just this application).
+                // A single cheap kernel32 syscall — no perf-counter service dependency, no
+                // first-call warm-up cost, safe to call every poll tick without caching.
+                [DllImport("kernel32.dll", SetLastError = true)]
+                [return: MarshalAs(UnmanagedType.Bool)]
+                static extern bool GlobalMemoryStatusEx(ref MEMORYSTATUSEX lpBuffer);
+
                 [DllImport("GiantArmyWindowsThermalBridge", EntryPoint = "GAWT_IsThermalApiAvailable", CallingConvention = CallingConvention.Cdecl)]
                 static extern int GAWT_IsThermalApiAvailable();
 
@@ -503,6 +537,27 @@ namespace UnityEngine.AdaptivePerformance.GiantArmy.Windows
 
                     s_PollTimer?.Dispose();
                     s_PollTimer = null;
+                }
+
+                // Reads OS-wide physical memory status via GlobalMemoryStatusEx. memoryLoadPercent
+                // is the OS's own 0..100 measure of system memory pressure across all processes —
+                // the accurate figure to use in place of this application's own memory footprint.
+                public static bool TryGetSystemMemoryStatus(out ulong totalPhysicalBytes, out ulong availablePhysicalBytes, out uint memoryLoadPercent)
+                {
+                    var status = new MEMORYSTATUSEX { dwLength = (uint)Marshal.SizeOf(typeof(MEMORYSTATUSEX)) };
+
+                    if (!GlobalMemoryStatusEx(ref status))
+                    {
+                        totalPhysicalBytes = 0;
+                        availablePhysicalBytes = 0;
+                        memoryLoadPercent = 0;
+                        return false;
+                    }
+
+                    totalPhysicalBytes = status.ullTotalPhys;
+                    availablePhysicalBytes = status.ullAvailPhys;
+                    memoryLoadPercent = status.dwMemoryLoad;
+                    return true;
                 }
 
                 public static bool IsThermalApiAvailable()
